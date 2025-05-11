@@ -1,0 +1,72 @@
+USE [DebtCounsellingClients]
+GO
+
+SET ANSI_NULLS ON --This will control how MS SQL Server handles Null Values
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[DebtReview_Clients_Server_All_Present_Debt_Review_Clients_MTD]
+AS
+BEGIN
+
+/*
+--Author: Jennifer Akinboade
+--Date: 2025-05-11
+--Server: DebtReview
+--Database: DebtCounsellingClients
+--Description: This stored procedure retrieves all present debt review clients,and their personal details,as well their debt review journey end date .
+--Parameters: None
+--Return Values:  This stored procedure retrieves all present debt review clients,and their personal details,as well their debt review journey end date.
+--Execution Time:  48 sec
+--Rows Returned: ~ 12769
+--Modification History:
+--Usage: EXEC DebtReview_Clients_Server_All_Present_Debt_Review_Clients_MTD;
+*/
+
+
+
+BEGIN TRY
+
+DECLARE @SQL NVARCHAR(MAX) = '
+
+SELECT DISTINCT 
+       k.[identity_no] AS [Client_IDNumber]
+	    ,d.FN AS [Client_First_Name]
+	    ,d.LN AS [Client_Last_Name]
+	    ,m.cellno AS [Cellphone_Number]
+	    ,m.emailadd AS [Email_Address]
+      ,k.[statuscheck] AS [Debt_Review_Status]
+      ,k.[signup] AS [Signed_Up_Status]
+      ,COALESCE(k.[spouseidno],'None') AS [Spouse_IDNumber]
+	    ,DATEDIFF(YEAR,d.Birth_Date,GETDATE()) AS [Client_Age]
+	   ,DATEDIFF(MONTH,GETDATE(),n.End_Date) AS [Debt_Review_End_Date]
+	   ,DATEDIFF(MONTH,k.sign_up_date,GETDATE()) AS [Months_In_Debt_Review]
+	  FROM [DebtCounsellingSummaration].[sum].[clientsummary] k
+	  LEFT JOIN [DebtCounsellingClients].[debtcounselling].[clientinfo] m on m.identity_no = k.identity_no
+	  OUTER APPLY (SELECT TOP 1 COALESCE(c.final_payment_date,'') AS [DebtReview_Finish_Date] FROM [DebtCounsellingSummaration].[sum].[clientaccountinfo]c WHERE m.primarykey = c.primarykey  AND c.clientaccountno NOT LIKE '%LF%'
+     AND c.clientaccountno NOT LIKE '%FN%'
+     AND c.clientaccountno NOT LIKE '%CL%'
+     AND c.clientaccountno NOT LIKE '%AF%'
+		 AND c.clientaccountno NOT LIKE '%LIFE%'          
+		AND c.clientaccountno NOT IN ('SignUpFees') ORDER BY c.final_payment_date DESC) n
+	 LEFT JOIN [DebtReviewSignUp].[sign].[signupinfo] c on k.key1 = c.key1
+	 LEFT JOIN  [DebtReviewSignUp].[sign].[erm_person] d on d.key2 = c.key2
+	 WHERE DATEDIFF(MONTH, sign_up_date,GETDATE())  in( '3','6','9','12','18','24','36')
+	 AND DebtReview_Status in ('Currently Active')'
+
+	 EXEC spexecutesql @SQL;
+END TRY
+
+BEGIN CATCH
+  SELECT 
+        ERROR_NUMBER() AS ErrorNumber,
+        ERROR_MESSAGE() AS ErrorMessage,
+        ERROR_SEVERITY() AS ErrorSeverity,
+        ERROR_STATE() AS ErrorState,
+        ERROR_LINE() AS ErrorLine,
+        ERROR_PROCEDURE() AS ErrorProcedure;
+END CATCH
+
+END
