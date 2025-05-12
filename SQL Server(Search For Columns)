@@ -1,0 +1,8 @@
+--This query can be used to search a specific databasse that you specify, and find a specific column and in which table it lies
+
+USE DebtReviewDatabase;
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE COLUMN_NAME LIKE '%client_id_no%';
+
